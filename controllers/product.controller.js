@@ -1,5 +1,5 @@
 const Product = require("../models/product.model");
-const Mailer = require("../helper/mailer");
+
 class ProductController {
   async addProduct(req, res) {
     try {
@@ -131,67 +131,6 @@ class ProductController {
     } catch (err) {
       console.error(err.message);
       res.status(400).send("Error fetching out of stock products");
-    }
-  }
-
-  async sendAllProductsToEmail(req, res) {
-    try {
-      const { email } = req.body;
-      if (!email) return res.status(400).json({ message: "Email is required" });
-
-      const products = await Product.aggregate([
-        { $match: { isDeleted: { $ne: true } } },
-      ]);
-
-      if (!products.length) {
-        return res.status(404).json({ message: "No products found" });
-      }
-
-      const table = `
-      <h2 style="font-family: Arial, sans-serif;">Product List</h2>
-      <table style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr>
-            <th style="border: 1px solid #ddd; padding: 8px;">Name</th>
-            <th style="border: 1px solid #ddd; padding: 8px;">Price</th>
-            <th style="border: 1px solid #ddd; padding: 8px;">Stock</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${products
-            .map(
-              (p) => `
-            <tr>
-              <td style="border: 1px solid #ddd; padding: 8px;">${p.name}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${p.price}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${p.stock}</td>
-            </tr>
-          `
-            )
-            .join("")}
-        </tbody>
-      </table>
-    `;
-
-      const mailer = new Mailer(
-        "Gmail",
-        process.env.APP_EMAIL,
-        process.env.APP_PASSWORD
-      );
-
-      let mailObj = {
-        to: req.body.email,
-        subject: "all products",
-        html: table,
-        text: `Here is the list of all products`,
-      };
-
-      await mailer.sendMail(mailObj);
-
-      res.status(200).json({ message: "Product list emailed successfully" });
-    } catch (error) {
-      console.error(error.message);
-      res.status(500).json({ message: "Failed to send email" });
     }
   }
 }

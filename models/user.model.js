@@ -10,7 +10,11 @@ const UserSchema = new mongoose.Schema(
     otp: { type: Number, required: true },
     profileImage: { type: String, default: "" },
     isDeleted: { type: Boolean, default: false },
-    role: { type: String, enum: ['user', 'admin', 'moderator'], default: 'user' }, // Add the role field
+    role: {
+      type: String,
+      enum: ["user", "admin", "moderator"],
+      default: "user",
+    }, // Add the role field
   },
   {
     versionKey: false,

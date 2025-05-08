@@ -78,11 +78,8 @@ module.exports = () => {
         }
 
         // Check if user has the required role (e.g., "admin")
-        if (user.role == "admin") {
-          return res.send({
-            status: 403,
-            message: "You do not have permission to access this resource",
-          });
+        if (user.role !== "user") {
+          return res.send({ status: 403, message: "No permission" });
         }
 
         req.user = user;

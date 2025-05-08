@@ -49,7 +49,7 @@ class UserWebserviceController {
         role: req.body.role,
         profileImage: req.file.filename,
       };
-      
+
       let saveUser = await User.create(userObj);
       console.log(saveUser, "saveUser");
       if (saveUser) {
@@ -241,10 +241,12 @@ class UserWebserviceController {
   async editProfile(req, res) {
     try {
       const user = req.user; // user from token
-  
-      // Check if user exists
-      let existingUser = await User.findOne({ _id: user._id, isDeleted: false });
-  
+
+      const existingUser = await User.findOne({
+        _id: user._id,
+        isDeleted: false,
+      });
+
       if (!existingUser) {
         return res.status(404).send({
           status: 404,
@@ -252,23 +254,24 @@ class UserWebserviceController {
           message: "User not found",
         });
       }
-  
-      let updateData = {};
-  
-      // If firstName is provided
-      if (req.body.firstName) {
-        updateData.firstName = req.body.firstName.trim();
+
+      const body = req.body || {};
+      const updateData = {};
+
+      // Assign fields only if they're valid and different
+      if (body.firstName?.trim()) {
+        updateData.firstName = body.firstName.trim();
       }
-  
-      // If lastName is provided
-      if (req.body.lastName) {
-        updateData.lastName = req.body.lastName.trim();
+
+      if (body.lastName?.trim()) {
+        updateData.lastName = body.lastName.trim();
       }
-  
-      // If email is provided (Ensure you are not updating email if not allowed)
-      if (req.body.email && req.body.email !== existingUser.email) {
-        // Optionally, check if email already exists
-        let emailExists = await User.findOne({ email: req.body.email, isDeleted: false });
+
+      if (body.email?.trim() && body.email !== existingUser.email) {
+        const emailExists = await User.findOne({
+          email: body.email.trim(),
+          isDeleted: false,
+        });
         if (emailExists) {
           return res.status(400).send({
             status: 400,
@@ -276,15 +279,13 @@ class UserWebserviceController {
             message: "Email is already taken",
           });
         }
-        updateData.email = req.body.email.trim();
+        updateData.email = body.email.trim();
       }
-  
-      // If profile image is provided
-      if (req.file) {
+
+      if (req.file?.filename) {
         updateData.profileImage = req.file.filename;
       }
-  
-      // If no update data found
+
       if (Object.keys(updateData).length === 0) {
         return res.status(400).send({
           status: 400,
@@ -292,22 +293,20 @@ class UserWebserviceController {
           message: "No data provided to update",
         });
       }
-  
-      // Update the user
-      let updatedUser = await User.findByIdAndUpdate(
+
+      const updatedUser = await User.findByIdAndUpdate(
         user._id,
         { $set: updateData },
         { new: true }
       ).select("-password -_id -isDeleted -otp -createdAt -updatedAt");
-  
+
       return res.status(200).send({
         status: 200,
         data: updatedUser,
         message: "Profile updated successfully!",
       });
-  
     } catch (err) {
-      console.log(err);
+      console.log("Error updating profile:", err);
       return res.status(500).send({
         status: 500,
         data: {},
@@ -315,8 +314,111 @@ class UserWebserviceController {
       });
     }
   }
-  
-  
+
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res
+          .status(400)
+          .send({ status: 400, data: {}, message: "Email is required" });
+      }
+
+      const user = await User.findOne({ email, isDeleted: false });
+
+      if (!user) {
+        return res
+          .status(404)
+          .send({ status: 404, data: {}, message: "User not found" });
+      }
+
+      const payload = { id: user._id };
+      const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: "15m",
+      });
+
+      const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+      const mailer = new Mailer(
+        "Gmail",
+        process.env.APP_EMAIL,
+        process.env.APP_PASSWORD
+      );
+
+      let mailObj = {
+        to: email,
+        subject: "Reset Your Password",
+        text: `Click the following link to reset your password: ${resetLink}`,
+      };
+
+      mailer.sendMail(mailObj);
+
+      return res.status(200).send({
+        status: 200,
+        data: {},
+        message: "Password reset link sent to email",
+      });
+    } catch (err) {
+      return res
+        .status(500)
+        .send({ status: 500, data: {}, message: err.message });
+    }
+  }
+
+  async resetPassword(req, res) {
+    try {
+      const token = req.params.token;
+      const { newPassword, confirmPassword } = req.body;
+
+      if (!token || !newPassword || !confirmPassword) {
+        return res.status(400).send({
+          status: 400,
+          data: {},
+          message: "All fields are required",
+        });
+      }
+
+      if (newPassword !== confirmPassword) {
+        return res.status(400).send({
+          status: 400,
+          data: {},
+          message: "Passwords do not match",
+        });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      const user = await User.findOne({ _id: decoded.id, isDeleted: false });
+
+      if (!user) {
+        return res
+          .status(404)
+          .send({ status: 404, data: {}, message: "User not found" });
+      }
+
+      const hashedPassword = await new User().generateHash(newPassword);
+
+      // Update only the password, and ensure no extra validations for other fields
+      user.password = hashedPassword;
+
+      // Use `save()` without running validation for the other required fields
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(200).send({
+        status: 200,
+        data: {},
+        message: "Password has been reset successfully",
+      });
+    } catch (err) {
+      return res.status(500).send({
+        status: 500,
+        data: {},
+        message:
+          err.name === "TokenExpiredError" ? "Reset link expired" : err.message,
+      });
+    }
+  }
 }
 
 module.exports = new UserWebserviceController();
