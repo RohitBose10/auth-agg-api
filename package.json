@@ -1,7 +1,7 @@
 {
-  "name": "email-verification",
+  "name": "auth-and-product-management",
   "version": "1.0.0",
-  "description": "email verification project",
+  "description": "authentication and product management project",
   "license": "MIT",
   "author": "Rohit Bose",
   "type": "commonjs",
