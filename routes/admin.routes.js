@@ -67,11 +67,4 @@ router.get(
   adminProWebServices.listOutOfStockProducts
 );
 
-// Send all product data to an email (admin only)
-router.post(
-  '/admin/sendmail',
-  auth.authenticateAdminAPI,
-  adminProWebServices.sendAllProductsToEmail
-);
-
 module.exports = router;
