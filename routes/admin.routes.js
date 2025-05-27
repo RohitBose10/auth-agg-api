@@ -25,7 +25,7 @@ router.post(
 
 // List all categories with their products
 router.get(
-  '/admin/getcategory',
+  '/getcategory',
   adminCatWebServices.listCategoriesWithProducts
 );
 
@@ -43,7 +43,7 @@ router.post(
 
 // Get all products
 router.get(
-  '/admin/getproduct',
+  '/getproduct',
   adminProWebServices.listProducts
 );
 
@@ -63,7 +63,7 @@ router.delete(
 
 // List out-of-stock products
 router.get(
-  '/admin/listproduct',
+  '/listproduct',
   adminProWebServices.listOutOfStockProducts
 );
 

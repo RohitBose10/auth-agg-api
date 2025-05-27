@@ -1,4 +1,7 @@
 const User = require("../models/user.model");
+const Review = require("../models/review.model");
+const Product = require("../models/product.model");
+
 const Mailer = require("../helper/mailer");
 const jwt = require("jsonwebtoken");
 class UserWebserviceController {
@@ -416,6 +419,71 @@ class UserWebserviceController {
         data: {},
         message:
           err.name === "TokenExpiredError" ? "Reset link expired" : err.message,
+      });
+    }
+  }
+
+  async addReview(req, res) {
+    try {
+      const { productId, rating, comment } = req.body;
+
+      if (!productId || rating === undefined || !comment) {
+        return res.status(400).send({
+          status: 400,
+          data: {},
+          message: "All fields are required",
+        });
+      }
+
+      const parsedRating = parseInt(rating, 10);
+      if (
+        isNaN(parsedRating) ||
+        parsedRating < 1 ||
+        parsedRating > 5 ||
+        !Number.isInteger(parsedRating)
+      ) {
+        return res.status(400).send({
+          status: 400,
+          data: {},
+          message: "Rating must be an integer between 1 and 5",
+        });
+      }
+
+      const product = await Product.findById(productId);
+      if (!product) {
+        return res.status(404).send({
+          status: 404,
+          data: {},
+          message: "Product not found",
+        });
+      }
+
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        return res.status(404).send({
+          status: 404,
+          data: {},
+          message: "User not found",
+        });
+      }
+
+      const review = await Review.create({
+        productId,
+        rating: parsedRating,
+        comment,
+        userId: user._id,
+      });
+
+      return res.status(200).send({
+        status: 200,
+        data: review,
+        message: "Review added successfully",
+      });
+    } catch (err) {
+      return res.status(500).send({
+        status: 500,
+        data: {},
+        message: err.message,
       });
     }
   }

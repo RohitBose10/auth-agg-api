@@ -18,44 +18,107 @@ class ProductController {
 
   async listProducts(req, res) {
     try {
-      // Using aggregation pipeline with $lookup and pipeline inside it
       const products = await Product.aggregate([
         {
           $lookup: {
-            from: "categories", // Linking with the categories collection
-            let: { categoryId: "$categoryId" }, // Passing the categoryId from the product document
+            from: "categories",
+            let: { categoryId: "$categoryId" },
             pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ["$_id", "$$categoryId"] }, // Matching the categoryId with the category _id
-                },
-              },
-              {
-                $project: { name: 1 }, // Only include the category name
-              },
+              { $match: { $expr: { $eq: ["$_id", "$$categoryId"] } } },
+              { $project: { name: 1 } },
             ],
-            as: "category", // Storing the result of the lookup in "category"
+            as: "category",
+          },
+        },
+        { $unwind: "$category" },
+        {
+          $lookup: {
+            from: "reviews",
+            let: { prodId: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$productId", "$$prodId"] } } },
+            ],
+            as: "reviews",
           },
         },
         {
-          $unwind: "$category", // Flatten the "category" array (since $lookup returns an array)
+          $addFields: {
+            averageRating: {
+              $cond: [
+                { $gt: [{ $size: "$reviews" }, 0] },
+                { $avg: "$reviews.rating" },
+                0,
+              ],
+            },
+            totalReviews: { $size: "$reviews" },
+            "1star": {
+              $size: {
+                $filter: {
+                  input: "$reviews",
+                  as: "review",
+                  cond: { $eq: ["$$review.rating", 1] },
+                },
+              },
+            },
+            "2star": {
+              $size: {
+                $filter: {
+                  input: "$reviews",
+                  as: "review",
+                  cond: { $eq: ["$$review.rating", 2] },
+                },
+              },
+            },
+            "3star": {
+              $size: {
+                $filter: {
+                  input: "$reviews",
+                  as: "review",
+                  cond: { $eq: ["$$review.rating", 3] },
+                },
+              },
+            },
+            "4star": {
+              $size: {
+                $filter: {
+                  input: "$reviews",
+                  as: "review",
+                  cond: { $eq: ["$$review.rating", 4] },
+                },
+              },
+            },
+            "5star": {
+              $size: {
+                $filter: {
+                  input: "$reviews",
+                  as: "review",
+                  cond: { $eq: ["$$review.rating", 5] },
+                },
+              },
+            },
+          },
         },
         {
           $project: {
-            name: 1, // Including product name
-            price: 1, // Including product price
-            stock: 1, // Including product stock
-            category: "$category.name", // Directly include the category name
+            name: 1,
+            price: 1,
+            stock: 1,
+            category: "$category.name",
+            averageRating: 1,
+            totalReviews: 1,
+            "1star": 1,
+            "2star": 1,
+            "3star": 1,
+            "4star": 1,
+            "5star": 1,
           },
         },
       ]);
 
-      // Returning response with success message and fetched data
       return res
         .status(200)
         .json({ message: "Products fetched successfully", data: products });
     } catch (err) {
-      // Logging and returning error if something goes wrong
       console.error(err.message);
       res.status(400).send("Error fetching products");
     }

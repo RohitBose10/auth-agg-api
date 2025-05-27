@@ -44,4 +44,7 @@ router.post("/user/forgotPassword", userWebServices.forgotPassword);
 // Reset password using token
 router.post("/user/resetPassword/:token", userWebServices.resetPassword);
 
+//review
+router.post("/user/review",auth.authenticateAPI,userWebServices.addReview);
+
 module.exports = router;
